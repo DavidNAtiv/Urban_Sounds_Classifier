@@ -15,8 +15,10 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 
 from torch.utils.tensorboard import SummaryWriter
-writer = SummaryWriter('/home/root/python/UrbanSoundsClassif/runs/lstm')
 
+#todo IMPROVEMENT: tensorboard
+#writer = SummaryWriter('/home/root/python/UrbanSoundsClassif/runs/lstm')
+###################33
 
 # -----------------------------------------------
 # # DataSet and DataLoader
@@ -81,12 +83,12 @@ class myDataset(Dataset):
         # training dataset
         if self.training :
             d = self.data.loc[self.data.fold != 10]
-
         else:
             d = self.data.loc[self.data.fold == 10]
-
         return len(d)
 
+#the simpliest data loader, so it doesnt need a class
+#todo IMPROVEMENTS: K fold
 def create_data_loader(train_data, batch_size, shuffle=True):
     train_dataloader = DataLoader(train_data, batch_size, shuffle, drop_last=True)
     return train_dataloader
@@ -94,7 +96,6 @@ def create_data_loader(train_data, batch_size, shuffle=True):
 
 # -----------------------------------------------------------
 # # RNN/GRU Model
-
 class RNN(nn.Module):
     def __init__(self, input_size, hidden_size, batch_size, num_layers, nb_classes, regularized, device):
         super(RNN, self).__init__()
@@ -336,9 +337,12 @@ if __name__ == "__main__":
     for x,y in dl_train:
         #input = ds_train[0][0].reshape(-1,seq_size,nb_features)
         break
-    writer.add_graph(model, x.float())
 
-    writer.close()
+    ##################
+    # todo
+    # writer.add_graph(model, x.float())
+    # writer.close()
+    ##################
 
     # ---------------------------------------------------------------
     # Training
