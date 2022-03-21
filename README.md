@@ -10,5 +10,6 @@ I used librosa lib here to preprocess the audio (normalization, MFCC extraction)
 Improvements :
 --------------
   - better logs, eventually using Tensorboard or any similar tool (Clear ML ?)
-  - try the same algo w/ lightning
-  - try to tweak meta parameters to improve scores
+  - try to tweak hyper parameters to improve scores
+  - add a K fold option for training
+  - try the same algo w/ lightning (for training purpose)
