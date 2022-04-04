@@ -1,103 +1,29 @@
 
 import os, json, time
-
+import argparse
 import pandas as pd
 import numpy as np
 
-import librosa, librosa.display
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
 
-from torch.utils.tensorboard import SummaryWriter
+from dataset import *
+
+#from torch.utils.tensorboard import SummaryWriter
 
 #todo IMPROVEMENT: tensorboard
 #writer = SummaryWriter('/home/root/python/UrbanSoundsClassif/runs/lstm')
 ###################33
 
-# -----------------------------------------------
-# # DataSet and DataLoader
-#
-# - implement a class to be loaded with torch dataloader
-# - generate dataset for training / testing (training=True|False)
-# - we keep folder number 10 for test (10%)
-
-
-class myDataset(Dataset):
-    def __init__(self, sr,MAX_LENGTH , DATA_DIR, CSV_FILE, training, device):
-        self.device = device
-        self.sr = sr
-        self.data = pd.read_csv(CSV_FILE)
-        self.training = training
-        self.DATA_DIR = DATA_DIR
-        self.MAX_LENGTH = MAX_LENGTH
-
-    def __getitem__(self, i):
-        if self.training:
-            #training dataset
-            table_data = self.data.loc[self.data.fold != 10 ]
-        else:
-            # test dataset
-            table_data = self.data.loc[self.data.fold == 10]
-
-        #get file info
-        filename, _, _, _, _, fold, label, _ = table_data.iloc[i,:]
-        label = int(label)
-        #construct path and read file
-        relative_path = self.DATA_DIR + '/fold' + str(fold) + '/' + filename
-        #load file
-        y, sr = librosa.load(relative_path)
-
-        #down mix if necessary
-        if sr != self.sr:
-            y = librosa.resample(y, sr, self.sr)
-        #mono
-        if y.shape[0] > 1:
-            y = librosa.to_mono(y)
-
-        #check that the sample has the desired length
-        #if not, padding
-        length = len(y)
-        if length < self.MAX_LENGTH * self.sr:
-            blank_pad = np.zeros(self.MAX_LENGTH * self.sr - length)
-            y = np.concatenate((y , blank_pad ))
-        elif length > self.MAX_LENGTH * self.sr:
-            y = y[:-(length - self.MAX_LENGTH * self.sr)]
-
-        #mfcc
-        mfcc = librosa.feature.mfcc(
-            y, self.sr, n_mfcc=64, n_fft=1024, hop_length=512)
-        mfcc = np.array(mfcc.T)
-
-        #to tensor
-        y = torch.as_tensor(mfcc,dtype=float).to(device)
-        label = torch.as_tensor(label).to(device)
-        return y, label
-
-    def __len__(self):
-        # training dataset
-        if self.training :
-            d = self.data.loc[self.data.fold != 10]
-        else:
-            d = self.data.loc[self.data.fold == 10]
-        return len(d)
-
-#the simpliest data loader, so it doesnt need a class
-#todo IMPROVEMENTS: K fold
-def create_data_loader(train_data, batch_size, shuffle=True):
-    train_dataloader = DataLoader(train_data, batch_size, shuffle, drop_last=True)
-    return train_dataloader
 
 
 # -----------------------------------------------------------
 # # RNN/GRU Model
 class RNN(nn.Module):
-    def __init__(self, input_size, hidden_size, batch_size, num_layers, nb_classes, regularized, device):
+    def __init__(self, input_size, hidden_size, batch_size, num_layers, nb_classes, regularized, dropout, device):
         super(RNN, self).__init__()
         self.batch_size = batch_size
         self.hidden_size = hidden_size
@@ -105,6 +31,7 @@ class RNN(nn.Module):
         self.device = device
         self.nb_classes = nb_classes
         self.regularized = regularized
+        self.dropout = dropout
 
         #=====================================================================================
         #for simple RNN remplace GRU by RNN (!!!!!)
@@ -117,7 +44,7 @@ class RNN(nn.Module):
                 input_size = input_size,   #nb of mfcc
                 hidden_size = self.hidden_size, #hyper param
                 num_layers = self.num_layers,    #hyper param
-                dropout = 0.2,
+                dropout = self.dropout,
                 batch_first=True,
         )
 
@@ -161,7 +88,7 @@ def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, devic
     begin_in_bench = time.time()
 
     for e, (X, y) in enumerate(train_data):
-        # print(f"-- Episode {e} --")
+        print(f"-- Episode {e+1} --")
         X, y = X.to(device), y.to(device)
 
         # input vector has size : torch.Size([N, L, H_in])
@@ -188,9 +115,9 @@ def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, devic
         running_correct = 0
 
         running_correct += (torch.argmax(pred) == y).sum().item()
-        print(running_correct)
-        print(torch.argmax(pred))
-        exit()
+        #print(running_correct)
+        #print(torch.argmax(pred))
+        #exit()
 
 
 
@@ -229,9 +156,8 @@ def train_multi_epoch(model, train_data, test_data, optimizer, criterion, epochs
     accuracy_history = []
     timer = time.time()
 
-
     for e in range(epochs):
-        print(f"---- Beginning epoch {e} ----")
+        print(f"---- Beginning epoch {e+1} ----")
         #training
         epoch_loss = train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, device)
 
@@ -282,10 +208,53 @@ if __name__ == "__main__":
     print(f"Welcome to the MLP Urban Sound Classifier -({round(time.time(),2)})")
     print("-------------------------------------\n")
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--lr',         type=float, required=False, help='Enter the learning rate',         default=5e-4)
+    parser.add_argument('--epochs',     type=int,   required=False, help='Enter the number of epochs',      default=1)
+    parser.add_argument('--batch',      type=int,   required=False, help='Enter the batch size',            default=32)
+    parser.add_argument('--l2',         type=float, required=False, help='Enter the L2 regularisation rate',default=0.)
+
+    parser.add_argument('--sr',         type=float, required=False, help='Enter the target sample rate',    default=22050)
+    parser.add_argument('--maxlength',  type=int,   required=False, help='Enter the desired audio length',  default=4)
+
+    parser.add_argument('--hidden',     type=int,   required=False, help='Enter the NN hidden size',        default=128)
+    parser.add_argument('--layers',     type=int,   required=False, help='Enter the NN number of layers',   default=2)
+    parser.add_argument('--dropout',    type=float,  required=False, help='Enter the dropout value [0;1]',  default=0.)
+
+    parser.add_argument('--disablecuda',type=bool,  required=False, help='Add to disable CUDA references',  default=False)
+    parser.add_argument('--USdir',      type=str,   required=False, help='UrbanSound8K directory  /UrbanSound8K/' )
+    args = parser.parse_args()
+
+    ##############
+    #python main.py --dropout 0.2 --l2 1E-4 --USdir `pwd`/UrbanSound8K/
+    ###############
+
+
+    ### Parameters
+    ################## audio parameters
+    SAMPLE_RATE = args.sr
+    MAX_LENGTH = args.maxlength
+
+    ############### training parameters
+    EPOCHS = args.epochs
+    BATCH_SIZE = args.batch
+
+    LR = args.lr
+    L2_LAMBDA = args.l2 #if args.l2 else 1E-4
+    regularized = True if args.l2 else False
+
+    ############### NN parameters
+    hidden_size = args.hidden  # H_out (hyper param)
+    num_layers = args.layers   # (hyper param)
+    dropout = args.dropout
+
+    nb_classes = 10 # output size
+    ############3
+
     # ---------------------------------------------------------------
     # CUDA
     #Using GPU
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu") if not args.disablecuda else 'cpu'
     print(torch.cuda.get_device_name(0))
 
     # ---------------------------------------------------------------
@@ -293,9 +262,14 @@ if __name__ == "__main__":
 
     #setting directory
     print(os.getcwd())
-    ROOT_DIR = os.getcwd() + '/..'
-    DATA_DIR = ROOT_DIR + '/UrbanSound8K/audio'
-    CSV_FILE = ROOT_DIR + '/UrbanSound8K/metadata/UrbanSound8K.csv'
+    # ROOT_DIR = os.getcwd() + '/..'
+    # DATA_DIR = ROOT_DIR + '/UrbanSound8K/audio'
+    # CSV_FILE = ROOT_DIR + '/UrbanSound8K/metadata/UrbanSound8K.csv'
+    ROOT_DIR = args.USdir if args.USdir else os.getcwd() + '/../'
+    DATA_DIR = ROOT_DIR + 'audio'
+    CSV_FILE = ROOT_DIR + 'metadata/UrbanSound8K.csv'
+
+    print(DATA_DIR, CSV_FILE)
 
     # open and read csv file
     df = pd.read_csv(CSV_FILE)
@@ -308,14 +282,10 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------
     # Prepare Dataset & DataLoader
 
-    BATCH_SIZE = 32 # N
-    SAMPLE_RATE = 22050
-    MAX_LENGTH = 4  # seconds
-
     # create the data generator
-    ds_train = myDataset(SAMPLE_RATE, MAX_LENGTH, DATA_DIR, CSV_FILE, device, True)
+    ds_train = myDataset(SAMPLE_RATE, MAX_LENGTH, DATA_DIR, CSV_FILE, True, device)
     dl_train = create_data_loader(ds_train, BATCH_SIZE)
-    ds_test = myDataset(SAMPLE_RATE, MAX_LENGTH, DATA_DIR, CSV_FILE, device, False)
+    ds_test = myDataset(SAMPLE_RATE, MAX_LENGTH, DATA_DIR, CSV_FILE, False, device)
     dl_test = create_data_loader(ds_test, BATCH_SIZE, shuffle = False)
 
     # ---------------------------------------------------------------
@@ -326,17 +296,13 @@ if __name__ == "__main__":
     nb_features = ds_train[0][0].size()[1] # H_in
     input_size = nb_features
 
-    hidden_size = 128  # H_out (hyper param)
-    num_layers = 2  # (hyper param)
-    nb_classes = 10 # output size
-
     # create the model
-    model = RNN(input_size, hidden_size, BATCH_SIZE, num_layers, nb_classes, True, device).to(device)
+    model = RNN(input_size, hidden_size, BATCH_SIZE, num_layers, nb_classes, regularized, dropout, device).to(device)
     print(model)
 
-    for x,y in dl_train:
+    #for x,y in dl_train:
         #input = ds_train[0][0].reshape(-1,seq_size,nb_features)
-        break
+        #break
 
     ##################
     # todo
@@ -346,15 +312,10 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
     # Training
-
-    LR = 5e-4
-    L2_LAMBDA = 1E-4
     optimizer = optim.Adam(model.parameters(), lr=LR)  # , weight_decay=1E-5)
     criterion = nn.CrossEntropyLoss()
 
-    
     #training
-    EPOCHS = 1
 
     loss,acc = train_multi_epoch(
         model=model,
