@@ -1,4 +1,4 @@
-# Urban_Sounds_Classifier
+# Urban_Sounds_Classifier (ClearML Branch)
 Basic sound classifier using pytorch RNN with GRU or LSTM
 
 This a basic demo of a sound classifier. The idea is mainly to train using Reccurent NN with pytorch, and to benchmark the accuracy and training time 
