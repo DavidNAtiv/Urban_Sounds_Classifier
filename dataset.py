@@ -10,11 +10,12 @@ import numpy as np
 # - implement a class to be loaded with torch dataloader
 # - generate dataset for training / testing (training=True|False)
 # - we keep folder number 10 for test (10%)
+# -----------------------------------------------
 
 
 class myDataset(Dataset):
-    def __init__(self, sr,MAX_LENGTH , DATA_DIR, CSV_FILE, training, device):
-        self.device = device
+    def __init__(self, sr,MAX_LENGTH , DATA_DIR, CSV_FILE, training): #, device):
+        #self.device = device
         self.sr = sr
         self.data = pd.read_csv(CSV_FILE)
         self.training = training
@@ -54,13 +55,12 @@ class myDataset(Dataset):
             y = y[:-(length - self.MAX_LENGTH * self.sr)]
 
         #mfcc
-        mfcc = librosa.feature.mfcc(
-            y, self.sr, n_mfcc=64, n_fft=1024, hop_length=512)
+        mfcc = librosa.feature.mfcc(y=y, sr=self.sr, n_mfcc=64, n_fft=1024, hop_length=512)
         mfcc = np.array(mfcc.T)
 
         #to tensor
-        y = torch.as_tensor(mfcc,dtype=float).to(self.device)
-        label = torch.as_tensor(label).to(self.device)
+        y = torch.as_tensor(mfcc,dtype=float) #.to(self.device)
+        label = torch.as_tensor(label) #.to(self.device)
         return y, label
 
     def __len__(self):
