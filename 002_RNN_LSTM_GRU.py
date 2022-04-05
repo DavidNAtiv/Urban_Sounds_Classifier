@@ -14,8 +14,8 @@ from model import *
 from training import *
 
 ###############################3
-#from clearml import Task
-#task = Task.init(project_name="Urban Sound Classifier", task_name="my task")
+from clearml import Task
+task = Task.init(project_name="Urban Sound Classifier", task_name="my task")
 ################################33
 #from torch.utils.tensorboard import SummaryWriter
 
