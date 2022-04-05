@@ -12,6 +12,10 @@ import torch.optim as optim
 
 from dataset import *
 
+###############################3
+from clearml import Task
+task = Task.init(project_name="Urban Sound Classifier", task_name="my task")
+################################33
 #from torch.utils.tensorboard import SummaryWriter
 
 #todo IMPROVEMENT: tensorboard
@@ -222,7 +226,7 @@ if __name__ == "__main__":
     parser.add_argument('--dropout',    type=float,  required=False, help='Enter the dropout value [0;1]',  default=0.)
 
     parser.add_argument('--disablecuda',type=bool,  required=False, help='Add to disable CUDA references',  default=False)
-    parser.add_argument('--USdir',      type=str,   required=False, help='UrbanSound8K directory  /UrbanSound8K/' )
+    parser.add_argument('--USdir',      type=str,   required=False, help='UrbanSound8K directory  /UrbanSound8k/' )
     args = parser.parse_args()
 
     ##############
