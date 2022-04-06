@@ -16,7 +16,7 @@ from training import *
 
 ###############################3
 from clearml import Task
-#task = Task.init(project_name="Urban Sound Classifier", task_name="First Matplotlib")
+task = Task.init(project_name="Urban Sound Classifier", task_name="01 Testing Logger")
 ################################33
 #from torch.utils.tensorboard import SummaryWriter
 
@@ -179,7 +179,6 @@ if __name__ == "__main__":
     # Plot
 
     today = str(date.today())
-
     ### loss
     loss_ = []
     for l in loss:
@@ -208,7 +207,7 @@ if __name__ == "__main__":
     x = np.arange(1, len(acc) + 1, 1)
     fig, ax = plt.subplots(1)
     ax.set_title(f'Accuracy  {today}')
-    ax.plot(x, loss, color='green', linewidth=1)
+    ax.plot(x, acc, color='green', linewidth=1)
     ax.set_ylim(0, np.ceil(np.max(acc)))
 
     file = f"Graph_{model.type}_{today.replace('-', '')}_acc.png"

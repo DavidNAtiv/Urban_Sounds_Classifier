@@ -3,10 +3,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from clearml import Logger
+
 # ------------------------------------------------------------
 # # TRAINING
 #
-def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, episods, log): #, device):
+def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, episods, log, current_epoch): #, device):
     bench_begin = time.time()
     loss_history = []
     begin_in_bench = time.time()
@@ -45,9 +47,14 @@ def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, episo
 
 
         if e % log == 0 and e != 0:
+            ## CLEARML : manually log accuracy
+            Logger.current_logger().report_scalar("Loss", "loss", iteration=(current_epoch-1)*episods + e , value=loss)
+            #############
+
             print(f"----> Loss = {loss.item()} -- {round(time.time() - begin_in_bench, 2)}s")
             begin_in_bench = time.time()
             loss_history.append(loss.item())
+
 
         if e >= episods:
             break
@@ -56,7 +63,7 @@ def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, episo
     print(f"Total Time: {round(time.time() - bench_begin, 2)}s for {e} rounds\n")
     return loss_history
 
-def evaluate_single_epoch(model, data, set): #, device):
+def evaluate_single_epoch(model, data, set, epoch, episod): #, device):
     correct = 0
     c = 0
     with torch.no_grad():
@@ -75,6 +82,12 @@ def evaluate_single_epoch(model, data, set): #, device):
 
     accuracy = correct / c
     print(f"Validation test : Current accuracy: {accuracy} on {c} test samples")
+
+    ## CLEARML : manually log accuracy
+    Logger.current_logger().report_scalar("Accuracy", "accuracy", iteration=epoch * episod , value=accuracy)
+    #############3
+
+
     return accuracy
 
 def train_multi_epoch(model, train_data, test_data, optimizer, criterion, epochs, episods, log, eval, L2_LAMBDA): #, device):
@@ -85,11 +98,11 @@ def train_multi_epoch(model, train_data, test_data, optimizer, criterion, epochs
     for e in range(epochs):
         print(f"---- Beginning epoch {e+1}/{epochs} ----")
         #training
-        epoch_loss = train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, episods, log) #, device)
+        epoch_loss = train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, episods, log, current_epoch=e+1) #, device)
 
         #evaluation (on a single random batch)
         print("---- Evaluating ----")
-        epoch_accuracy = evaluate_single_epoch(model, test_data, eval) #, device)
+        epoch_accuracy = evaluate_single_epoch(model, test_data, eval, e+1, episods) #, device)
 
         # storing
         loss_history.append(epoch_loss)
