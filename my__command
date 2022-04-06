@@ -1,1 +1,1 @@
-python 002_RNN_LSTM_GRU.py --epochs 1 --USdir `pwd`/UrbanSound8k/ --episods 6 --log 2 --eval 1
+python main.py --epochs 1 --USdir `pwd`/UrbanSound8k/ --episods 6 --log 2 --eval 1
