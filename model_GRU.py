@@ -19,6 +19,7 @@ class RNN(nn.Module):
         self.nb_classes = nb_classes
         self.regularized = regularized
         self.dropout = dropout
+        self.type = "GRU"
 
         #=====================================================================================
         #for simple RNN remplace GRU by RNN (!!!!!)
@@ -65,3 +66,15 @@ class RNN(nn.Module):
 
     def is_regularized(self):
         return self.regularized
+
+
+
+    def save(self, filename):
+        dir = os.path.split(filename)[0]
+        print(filename, dir, os.path.exists(dir))
+        if not os.path.exists(dir):
+            os.mkdir(dir)
+        torch.save(self.state_dict(), filename)
+
+    def load(self, filename):
+        self.load_state_dict(torch.load(filename))

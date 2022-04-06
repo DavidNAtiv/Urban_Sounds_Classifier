@@ -1,4 +1,5 @@
 import os, json, time
+from datetime import date
 import argparse
 import pandas as pd
 import numpy as np
@@ -10,12 +11,12 @@ import torch.nn as nn
 import torch.optim as optim
 
 from dataset import *
-from model import *
+from model_GRU import *
 from training import *
 
 ###############################3
 from clearml import Task
-task = Task.init(project_name="Urban Sound Classifier", task_name="my task")
+#task = Task.init(project_name="Urban Sound Classifier", task_name="First Matplotlib")
 ################################33
 #from torch.utils.tensorboard import SummaryWriter
 
@@ -35,12 +36,15 @@ task = Task.init(project_name="Urban Sound Classifier", task_name="my task")
 if __name__ == "__main__":
 
 
-    print(f"Welcome to the MLP Urban Sound Classifier -({round(time.time(),2)})")
-    print("-------------------------------------\n")
+    print(f"Welcome to the MLP Urban Sound Classifier") # -({round(time.time(),2)})")
+    print("------------------------------------------\n")
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--lr',         type=float, required=False, help='Enter the learning rate',         default=5e-4)
     parser.add_argument('--epochs',     type=int,   required=False, help='Enter the number of epochs',      default=1)
+    parser.add_argument('--episods',    type=int,   required=False, help='Enter the max number of episods in an epoch', default=10)
+    parser.add_argument('--eval',       type=int,   required=False, help='Enter the max number of evaluation')
+    parser.add_argument('--log',        type=int,   required=False, help='Enter the step of episods for logging', default=10)
     parser.add_argument('--batch',      type=int,   required=False, help='Enter the batch size',            default=32)
     parser.add_argument('--l2',         type=float, required=False, help='Enter the L2 regularisation rate',default=0.)
     parser.add_argument('--sr',         type=float, required=False, help='Enter the target sample rate',    default=22050)
@@ -49,13 +53,14 @@ if __name__ == "__main__":
     parser.add_argument('--layers',     type=int,   required=False, help='Enter the NN number of layers',   default=2)
     parser.add_argument('--dropout',    type=float,  required=False, help='Enter the dropout value [0;1]',  default=0.)
     #parser.add_argument('--disablecuda',type=bool,  required=False, help='Add to disable CUDA references',  default=False)
-    parser.add_argument('--USdir',      type=str,   required=False, help='UrbanSound8K directory' )
+    parser.add_argument('--USdir',      type=str,   required=False, help='UrbanSound8K directory', default=os.path.normpath(os.path.join(os.getcwd(),'UrbanSound8K')) )
+    parser.add_argument('--loadmodel',  type=str,   required=False, help='Load a pretrained model')
+
     args = parser.parse_args()
 
     ##############
     #python main.py --dropout 0.2 --l2 1E-4 --USdir `pwd`/UrbanSound8K/
     ###############
-
 
     ### Parameters
     ################## audio parameters
@@ -64,7 +69,10 @@ if __name__ == "__main__":
 
     ############### training parameters
     EPOCHS = args.epochs
+    EPISODS = args.episods
     BATCH_SIZE = args.batch
+    EVAL = 4 * BATCH_SIZE if not args.eval else args.eval
+
 
     LR = args.lr
     L2_LAMBDA = args.l2 #if args.l2 else 1E-4
@@ -88,7 +96,7 @@ if __name__ == "__main__":
     # Loading Data
 
     #setting directory
-    ROOT_DIR = os.path.normpath(args.USdir) if args.USdir else os.path.normpath(os.path.join(os.getcwd(),'UrbanSound8K'))
+    ROOT_DIR = os.path.normpath(args.USdir)
     DATA_DIR = os.path.join(ROOT_DIR, 'audio')
     CSV_FILE = os.path.join(ROOT_DIR, 'metadata/UrbanSound8K.csv')
 
@@ -119,7 +127,12 @@ if __name__ == "__main__":
 
     # create the model
     model = RNN(input_size, hidden_size, BATCH_SIZE, num_layers, nb_classes, regularized, dropout) #, device).to(device)
+    if args.loadmodel:
+        print(f"Loading pretrained model at {args.loadmodel}")
+        model.load(os.path.normpath(args.loadmodel))
+
     print(model)
+
 
     #for x,y in dl_train:
         #input = ds_train[0][0].reshape(-1,seq_size,nb_features)
@@ -145,24 +158,73 @@ if __name__ == "__main__":
         optimizer=optimizer,
         criterion=criterion,
         epochs=EPOCHS,
-        L2_LAMBDA=L2_LAMBDA,
-        batch_size=BATCH_SIZE)#,
-        #device=device
-    #)
+        episods=EPISODS,
+        log=args.log,
+        eval=EVAL,
+        L2_LAMBDA=L2_LAMBDA) #device=device)
 
 
     # ---------------------------------------------------------------
     # Save Model
+    today = str(date.today()).replace('-', '')
+    file = f"Model_{model.type}_{today}_{EPISODS}_{EPOCHS}"
+    path = os.path.join(os.getcwd(),'./MODELS/')
+    path = os.path.join(path, file)
+    path = os.path.normpath(path)
+    model.save(path)
+    print(f"Saving the model at {path}")
 
-    #torch.save(model.state_dict(), f'../RNN_{EPOCHS}.pth')
 
     # ---------------------------------------------------------------
     # Plot
 
-    #plt.figure()
-    plt.plot(loss,acc)
-    plt.show()
+    today = str(date.today())
 
+    ### loss
+    loss_ = []
+    for l in loss:
+        for e in l:
+            loss_.append(e)
+    loss = loss_
+
+    x = np.arange(1, len(loss) + 1, 1)
+    fig, ax = plt.subplots(1)
+    ax.set_title(f'Loss {today}')
+    ax.plot(x, loss, color='red', linewidth=1)
+    ax.set_ylim(0, np.ceil(np.max(loss)))
+
+    file = f"Graph_{model.type}_{today.replace('-', '')}_loss.png"
+    path = os.path.join(os.getcwd(),'./GRAPH/')
+    if not os.path.exists(path):
+        print('Creating the dir ./GRAPH')
+        os.mkdir(path)
+    path = os.path.join(path, file)
+    path = os.path.normpath(path)
+    plt.savefig(path)
+    print(f"Saving the loss graph at {path}")
+    plt.clf()
+
+    #### accuracy
+    x = np.arange(1, len(acc) + 1, 1)
+    fig, ax = plt.subplots(1)
+    ax.set_title(f'Accuracy  {today}')
+    ax.plot(x, loss, color='green', linewidth=1)
+    ax.set_ylim(0, np.ceil(np.max(acc)))
+
+    file = f"Graph_{model.type}_{today.replace('-', '')}_acc.png"
+    path = os.path.join(os.getcwd(),'./GRAPH/')
+    path = os.path.join(path, file)
+    path = os.path.normpath(path)
+    plt.savefig(path)
+    print(f"Saving the accuracy graph at {path}")
+    plt.clf()
+
+
+    """ax[1].plot(acc)
+    ax[1].set(title='Accuracy')
+
+    print(f"Saving the model at {path}")
+"""
 
     #state_dict = torch.load("../MLP_8.pth")
     #model.load_state_dict(state_dict)

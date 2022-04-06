@@ -6,13 +6,12 @@ import torch.optim as optim
 # ------------------------------------------------------------
 # # TRAINING
 #
-def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA): #, device):
+def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, episods, log): #, device):
     bench_begin = time.time()
     loss_history = []
     begin_in_bench = time.time()
 
     for e, (X, y) in enumerate(train_data):
-        print(f"-- Episode {e+1} --")
         #X, y = X.to(device), y.to(device)
 
         # input vector has size : torch.Size([N, L, H_in])
@@ -45,13 +44,14 @@ def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA): #, d
 
 
 
-        if e % 10 == 0 and e != 0:
-            print(f"-- Episode {e} --> Loss = {loss.item()} -- {round(time.time() - begin_in_bench, 2)}s")
+        if e % log == 0 and e != 0:
+            print(f"----> Loss = {loss.item()} -- {round(time.time() - begin_in_bench, 2)}s")
             begin_in_bench = time.time()
             loss_history.append(loss.item())
 
-        if e >= 20:
+        if e >= episods:
             break
+        print(f"-- Episode {e+1}/{episods} --")
 
     print(f"Total Time: {round(time.time() - bench_begin, 2)}s for {e} rounds\n")
     return loss_history
@@ -77,18 +77,19 @@ def evaluate_single_epoch(model, data, set): #, device):
     print(f"Validation test : Current accuracy: {accuracy} on {c} test samples")
     return accuracy
 
-def train_multi_epoch(model, train_data, test_data, optimizer, criterion, epochs, L2_LAMBDA, batch_size): #, device):
+def train_multi_epoch(model, train_data, test_data, optimizer, criterion, epochs, episods, log, eval, L2_LAMBDA): #, device):
     loss_history = []
     accuracy_history = []
     timer = time.time()
 
     for e in range(epochs):
-        print(f"---- Beginning epoch {e+1} ----")
+        print(f"---- Beginning epoch {e+1}/{epochs} ----")
         #training
-        epoch_loss = train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA) #, device)
+        epoch_loss = train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, episods, log) #, device)
 
         #evaluation (on a single random batch)
-        epoch_accuracy = evaluate_single_epoch(model, test_data, 4*32) #, device)
+        print("---- Evaluating ----")
+        epoch_accuracy = evaluate_single_epoch(model, test_data, eval) #, device)
 
         # storing
         loss_history.append(epoch_loss)
