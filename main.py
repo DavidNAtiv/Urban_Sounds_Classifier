@@ -17,7 +17,48 @@ from training import *
 
 ###############################3
 from clearml import Task
-task = Task.init(project_name="Urban Sound Classifier", task_name="01 Testing Logger")
+
+
+from clearml import Task
+#task = Task.init(project_name="Urban Sound Classifier", task_name="01 Testing Logger")
+
+from clearml.automation import UniformParameterRange, UniformIntegerParameterRange
+from clearml.automation import HyperParameterOptimizer
+from clearml.automation.optuna import OptimizerOptuna
+
+task = Task.init(
+    project_name='Hyper-Parameter Optimization',
+    task_name='Automatic Hyper-Parameter Optimization',
+    task_type=Task.TaskTypes.optimizer,
+    reuse_last_task_id=False
+)
+
+optimizer = HyperParameterOptimizer(
+    # specifying the task to be optimized, task must be in system already so it can be cloned
+    base_task_id=TEMPLATE_TASK_ID,
+    # setting the hyper-parameters to optimize
+    hyper_parameters=[
+        UniformIntegerParameterRange('batch_size', min_value=32, max_value=64, step_size=32),
+        UniformParameterRange('dropout', min_value=0, max_value=0.4, step_size=0.2),
+        UniformParameterRange('base_lr', min_value=1e-4, max_value=1e-3, step_size=5e-4),
+    ],
+    # setting the objective metric we want to maximize/minimize
+    objective_metric_title='accuracy',
+    objective_metric_series='total',
+    objective_metric_sign='max',
+
+    # setting optimizer
+    optimizer_class=OptimizerOptuna,
+
+    # configuring optimization parameters
+    execution_queue='default',
+    max_number_of_concurrent_tasks=2,
+    optimization_time_limit=60.,
+    compute_time_limit=120,
+    total_max_jobs=20,
+    min_iteration_per_job=1,
+    max_iteration_per_job=50,
+)
 ################################33
 #from torch.utils.tensorboard import SummaryWriter
 
