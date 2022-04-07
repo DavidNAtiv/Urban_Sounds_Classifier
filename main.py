@@ -18,6 +18,13 @@ from training import *
 ###############################3
 from clearml import Task
 task = Task.init(project_name="Urban Sound Classifier", task_name="04 Testing HP Optim")
+
+configuration_dict = {'epochs': 4, 'batch': 32, 'dropout': 0.3, 'lr': 0.0005,
+                      'episods': 6, 'log': 2, 'eval': 16}
+configuration_dict = task.connect(configuration_dict)  # enabling configuration override by clearml
+print(configuration_dict)  # printing actual configuration (after override in remote mode)
+
+
 ################################33
 #from torch.utils.tensorboard import SummaryWriter
 
