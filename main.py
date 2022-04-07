@@ -17,14 +17,7 @@ from training import *
 
 ###############################3
 from clearml import Task
-task = Task.init(project_name="Urban Sound Classifier", task_name="04 Testing HP Optim")
-
-configuration_dict = {'epochs': 4, 'batch': 32, 'dropout': 0.3, 'lr': 0.0005,
-                      'episods': 6, 'log': 2, 'eval': 16}
-configuration_dict = task.connect(configuration_dict)  # enabling configuration override by clearml
-print(configuration_dict)  # printing actual configuration (after override in remote mode)
-
-
+task = Task.init(project_name="Urban Sound Classifier", task_name="05 Testing Args override")
 ################################33
 #from torch.utils.tensorboard import SummaryWriter
 
@@ -56,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch',      type=int,   required=False, help='Enter the batch size',            default=32)
     parser.add_argument('--l2',         type=float, required=False, help='Enter the L2 regularisation rate',default=0.)
     parser.add_argument('--sr',         type=float, required=False, help='Enter the target sample rate',    default=22050)
+    parser.add_argument('--n_mfcc',     type=int  , required=False, help='Enter the nb of mfcc bands',      default=32)
     parser.add_argument('--maxlength',  type=int,   required=False, help='Enter the desired audio length',  default=4)
     parser.add_argument('--hidden',     type=int,   required=False, help='Enter the NN hidden size',        default=128)
     parser.add_argument('--layers',     type=int,   required=False, help='Enter the NN number of layers',   default=2)
@@ -92,6 +86,14 @@ if __name__ == "__main__":
     dropout = args.dropout
 
     nb_classes = 10 # output size
+
+    configuration_dict = {'Args/epochs': 4, 'Args/batch': 32, 'Args/dropout': 0.3, 'Args/lr': 1e-3,
+                          'Args/episods': 6, 'Args/log': 2, 'Args/eval': 16}
+
+    task.set_parameters_as_dict(configuration_dict)
+    #configuration_dict = task.connect(configuration_dict)  # enabling configuration override by clearml
+    print(configuration_dict)  # printing actual configuration (after override in remote mode)
+
     ############3
 
     # ---------------------------------------------------------------
@@ -120,9 +122,9 @@ if __name__ == "__main__":
     # Prepare Dataset & DataLoader
 
     # create the data generator
-    ds_train = myDataset(SAMPLE_RATE, MAX_LENGTH, DATA_DIR, CSV_FILE, True) #, device)
+    ds_train = myDataset(SAMPLE_RATE, MAX_LENGTH, DATA_DIR, CSV_FILE, True, args.n_mfcc) #, device)
     dl_train = create_data_loader(ds_train, BATCH_SIZE)
-    ds_test = myDataset(SAMPLE_RATE, MAX_LENGTH, DATA_DIR, CSV_FILE, False) #, device)
+    ds_test = myDataset(SAMPLE_RATE, MAX_LENGTH, DATA_DIR, CSV_FILE, False, args.n_mfcc) #, device)
     dl_test = create_data_loader(ds_test, BATCH_SIZE, shuffle = False)
 
     # ---------------------------------------------------------------

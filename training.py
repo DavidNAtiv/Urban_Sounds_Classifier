@@ -2,6 +2,7 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 
 from clearml import Logger
 
@@ -58,7 +59,7 @@ def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, episo
 
         if e >= episods:
             break
-        print(f"-- Episode {e+1}/{episods} --")
+        print(f"-- Episod {e+1}/{episods} --")
 
     print(f"Total Time: {round(time.time() - bench_begin, 2)}s for {e} rounds\n")
     return loss_history
@@ -85,6 +86,15 @@ def evaluate_single_epoch(model, data, set, epoch, episod): #, device):
 
     ## CLEARML : manually log accuracy
     Logger.current_logger().report_scalar("Accuracy", "accuracy", iteration=epoch * episod , value=accuracy)
+    #### debug info : gives some random audio to hear from the set of data used for valid
+    #generate a list of a max of n indeices of the data sample
+    n = 4
+    indices = np.unique(np.random.randint(0, len(a), n))
+    for i,index in enumerate(indices):
+        X, y = data[index]
+        title = f'{episod}/{epoch}-Sample {i}) class={y}'
+        Logger.current_logger().report_scalar("Audio Sample", title, iteration=epoch * episod, value=X)
+
     #############3
 
 
