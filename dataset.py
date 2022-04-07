@@ -14,13 +14,14 @@ import numpy as np
 
 
 class myDataset(Dataset):
-    def __init__(self, sr,MAX_LENGTH , DATA_DIR, CSV_FILE, training): #, device):
+    def __init__(self, sr,MAX_LENGTH , DATA_DIR, CSV_FILE, training, n_mfcc): #, device):
         #self.device = device
         self.sr = sr
         self.data = pd.read_csv(CSV_FILE)
         self.training = training
         self.DATA_DIR = DATA_DIR
         self.MAX_LENGTH = MAX_LENGTH
+        self.n_mfcc = n_mfcc
 
     def __getitem__(self, i):
         if self.training:
@@ -55,7 +56,7 @@ class myDataset(Dataset):
             y = y[:-(length - self.MAX_LENGTH * self.sr)]
 
         #mfcc
-        mfcc = librosa.feature.mfcc(y=y, sr=self.sr, n_mfcc=64, n_fft=1024, hop_length=512)
+        mfcc = librosa.feature.mfcc(y=y, sr=self.sr, n_mfcc=self.n_mfcc, n_fft=1024, hop_length=512)
         mfcc = np.array(mfcc.T)
 
         #to tensor
