@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 
 import matplotlib.pyplot as plt
+from matplotlib import cm
 
 import torch
 import torch.nn as nn
@@ -17,7 +18,7 @@ from training import *
 
 ###############################3
 from clearml import Task
-task = Task.init(project_name="Urban Sound Classifier", task_name="05 Testing Args override")
+task = Task.init(project_name="Urban Sound Classifier", task_name="07 Testing debug samples (audio)")
 
 configuration_dict = {'Args/epochs': 4, 'Args/batch': 32, 'Args/dropout': 0.3, 'Args/lr': 1e-3,
                       'Args/episods': 6, 'Args/log': 2, 'Args/eval': 16}
@@ -120,6 +121,9 @@ if __name__ == "__main__":
     ds_test = myDataset(SAMPLE_RATE, MAX_LENGTH, DATA_DIR, CSV_FILE, False, args.n_mfcc) #, device)
     dl_test = create_data_loader(ds_test, BATCH_SIZE, shuffle = False)
 
+    ########### CLEARML : getting audio samples
+    ds_train.samples()
+
     # ---------------------------------------------------------------
     # Create Model
 
@@ -156,6 +160,7 @@ if __name__ == "__main__":
 
     loss,acc = train_multi_epoch(
         model=model,
+        labels=labels,
         train_data=dl_train,
         test_data= dl_test,
         optimizer=optimizer,

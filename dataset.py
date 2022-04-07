@@ -4,6 +4,10 @@ import torch
 import pandas as pd
 import numpy as np
 
+from clearml import Logger
+import scipy.io.wavfile as wav
+import io, time, os
+
 # -----------------------------------------------
 # # DataSet and DataLoader
 #
@@ -71,6 +75,55 @@ class myDataset(Dataset):
         else:
             d = self.data.loc[self.data.fold == 10]
         return len(d)
+
+    #### returns random audio samples
+    def samples(self):
+        if self.training:
+            #training dataset
+            table_data = self.data.loc[self.data.fold != 10 ]
+        else:
+            # test dataset
+            table_data = self.data.loc[self.data.fold == 10]
+
+        #get file info
+        filename, _, _, _, _, fold, label, _ = table_data.iloc[0,:]
+        label = int(label)
+        #construct path and read file
+        relative_path = self.DATA_DIR + '/fold' + str(fold) + '/' + filename
+        #load file
+        y, sr = librosa.load(relative_path)
+
+        #down mix if necessary
+        if sr != self.sr:
+            y = librosa.resample(y, sr, self.sr)
+        #mono
+        if y.shape[0] > 1:
+            y = librosa.to_mono(y)
+
+        #check that the sample has the desired length
+        #if not, padding
+        length = len(y)
+        if length < self.MAX_LENGTH * self.sr:
+            blank_pad = np.zeros(self.MAX_LENGTH * self.sr - length)
+            y = np.concatenate((y , blank_pad ))
+        elif length > self.MAX_LENGTH * self.sr:
+            y = y[:-(length - self.MAX_LENGTH * self.sr)]
+
+        #y contains our audio data
+        d = time.strftime("%Y,%m,%d,_%H,%M,%S")
+        t = d.split(',')
+        today = ''.join(t)
+
+        rd = np.random.randint(0,1000)
+        file = f"AudioSample_{rd}"
+        path = os.path.join(os.getcwd(), './SND/')
+        path = os.path.join(path, file)
+        path = os.path.normpath(path)
+        wav.write(path, sr, y)
+
+        Logger.current_logger().report_media("Audio Sample", "audiosample", iteration=1, local_path=path)
+
+
 
 #the simpliest data loader, so it doesnt need a class
 #todo IMPROVEMENTS: K fold

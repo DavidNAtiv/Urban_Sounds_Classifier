@@ -1,9 +1,13 @@
-import time
+import time, os, io
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import librosa, librosa.display
 
+import matplotlib.pyplot as plt
+from PIL import Image
 from clearml import Logger
 
 # ------------------------------------------------------------
@@ -64,7 +68,7 @@ def train_single_epoch(model, train_data, optimizer, criterion, L2_LAMBDA, episo
     print(f"Total Time: {round(time.time() - bench_begin, 2)}s for {e} rounds\n")
     return loss_history
 
-def evaluate_single_epoch(model, data, set, epoch, episod): #, device):
+def evaluate_single_epoch(model, data, set, epoch, episod, labels): #, device):
     correct = 0
     c = 0
     with torch.no_grad():
@@ -85,22 +89,52 @@ def evaluate_single_epoch(model, data, set, epoch, episod): #, device):
     print(f"Validation test : Current accuracy: {accuracy} on {c} test samples")
 
     ## CLEARML : manually log accuracy
-    Logger.current_logger().report_scalar("Accuracy", "accuracy", iteration=epoch * episod , value=accuracy)
-    #### debug info : gives some random audio to hear from the set of data used for valid
-    #generate a list of a max of n indeices of the data sample
-    n = 4
-    indices = np.unique(np.random.randint(0, len(a), n))
-    for i,index in enumerate(indices):
-        X, y = data[index]
-        title = f'{episod}/{epoch}-Sample {i}) class={y}'
-        Logger.current_logger().report_scalar("Audio Sample", title, iteration=epoch * episod, value=X)
+    Logger.current_logger().report_scalar("Accuracy", "accuracy", iteration=epoch * episod, value=accuracy)
 
-    #############3
+    #### debug info : gives some random audio to hear from the set of data used for valid
+    #generate string w/current time
+    d = time.strftime("%Y,%m,%d,_%H,%M,%S")
+    t = d.split(',')
+    today = ''.join(t)
+    #nb of graphs
+    n = 1
+    for i, (X, y) in enumerate(data):
+        if i > n:
+            break
+        fig, ax = plt.subplots(1, sharex=True, sharey=True)
+        #random index
+        index = np.random.randint(X.shape[0])
+        #corresponding label
+        lab = y.detach().numpy()[index]
+        #set graph title
+        title = f'{labels.iloc[lab]}'
+        #convert back data to np
+        mfcc_data = X.detach().numpy()
+        mfcc_data = mfcc_data[index].T
+        #plot
+        img = librosa.display.specshow(mfcc_data, x_axis='time', ax=ax)
+        fig.colorbar(img, ax=[ax])
+        ax.set(title=title)
+        #render (trying to get logged in Debug Samples
+        # buf = io.BytesIO()
+        # fig.savefig(buf)
+        # buf.seek(0)
+        # image = Image.open(buf)
+
+        #save
+        file = f"MFCC_{today}_{episod}x{epoch}_{i}"
+        path = os.path.join(os.getcwd(), './IMG/')
+        path = os.path.join(path, file)
+        path = os.path.normpath(path)
+        plt.savefig(path, format='png')
+        Logger.current_logger().report_image("MFCC Sample", title, iteration=epoch * episod, image=Image.open(path))
+        plt.close()
+    #############
 
 
     return accuracy
 
-def train_multi_epoch(model, train_data, test_data, optimizer, criterion, epochs, episods, log, eval, L2_LAMBDA): #, device):
+def train_multi_epoch(model, labels, train_data, test_data, optimizer, criterion, epochs, episods, log, eval, L2_LAMBDA): #, device):
     loss_history = []
     accuracy_history = []
     timer = time.time()
@@ -112,7 +146,7 @@ def train_multi_epoch(model, train_data, test_data, optimizer, criterion, epochs
 
         #evaluation (on a single random batch)
         print("---- Evaluating ----")
-        epoch_accuracy = evaluate_single_epoch(model, test_data, eval, e+1, episods) #, device)
+        epoch_accuracy = evaluate_single_epoch(model, test_data, eval, e+1, episods, labels) #, device)
 
         # storing
         loss_history.append(epoch_loss)
