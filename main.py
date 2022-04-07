@@ -18,12 +18,15 @@ from training import *
 ###############################3
 from clearml import Task
 task = Task.init(project_name="Urban Sound Classifier", task_name="05 Testing Args override")
-################################33
-#from torch.utils.tensorboard import SummaryWriter
 
-#todo IMPROVEMENT: tensorboard
-#writer = SummaryWriter('/home/root/python/UrbanSoundsClassif/runs/lstm')
-###################33
+configuration_dict = {'Args/epochs': 4, 'Args/batch': 32, 'Args/dropout': 0.3, 'Args/lr': 1e-3,
+                      'Args/episods': 6, 'Args/log': 2, 'Args/eval': 16}
+
+task.set_parameters_as_dict(configuration_dict)
+# configuration_dict = task.connect(configuration_dict)  # enabling configuration override by clearml
+print(configuration_dict)  # printing actual configuration (after override in remote mode)
+
+################################33
 
 
 # ---------------------------------------------------------------
@@ -35,8 +38,6 @@ task = Task.init(project_name="Urban Sound Classifier", task_name="05 Testing Ar
 #===========================  MAIN FUNCTION  ==================================================
 #==============================================================================================
 if __name__ == "__main__":
-
-
     print(f"Welcome to the MLP Urban Sound Classifier") # -({round(time.time(),2)})")
     print("------------------------------------------\n")
 
@@ -86,14 +87,6 @@ if __name__ == "__main__":
     dropout = args.dropout
 
     nb_classes = 10 # output size
-
-    configuration_dict = {'Args/epochs': 4, 'Args/batch': 32, 'Args/dropout': 0.3, 'Args/lr': 1e-3,
-                          'Args/episods': 6, 'Args/log': 2, 'Args/eval': 16}
-
-    task.set_parameters_as_dict(configuration_dict)
-    #configuration_dict = task.connect(configuration_dict)  # enabling configuration override by clearml
-    print(configuration_dict)  # printing actual configuration (after override in remote mode)
-
     ############3
 
     # ---------------------------------------------------------------
