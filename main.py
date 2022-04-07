@@ -1,5 +1,6 @@
 import os, json, time
-from datetime import date
+#from datetime import date
+import time
 import argparse
 import pandas as pd
 import numpy as np
@@ -166,8 +167,11 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
     # Save Model
-    today = str(date.today()).replace('-', '')
-    file = f"Model_{model.type}_{today}_{EPISODS}_{EPOCHS}"
+    d = time.strftime("%Y,%m,%d,_%H,%M,%S")
+    t = d.split(',')
+    today = ''.join(t)
+
+    file = f"Model_{model.type}_{today}_{EPISODS}x{EPOCHS}"
     path = os.path.join(os.getcwd(),'./MODELS/')
     path = os.path.join(path, file)
     path = os.path.normpath(path)
@@ -177,8 +181,6 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
     # Plot
-
-    today = str(date.today())
     ### loss
     loss_ = []
     for l in loss:
